@@ -7,23 +7,23 @@ from torchvision.transforms.v2 import (
     ColorJitter, GaussianBlur, ToImage, ToDtype, Normalize
 )
 
-class AgeGenderDataset(Dataset):
+class GenderDataset(Dataset):
     def __init__(self, root, train=True, transforms=None):
         self.root = root
         self.train = train
         self.transforms = transforms
         self.data = []
         self.labels = []
-        self.age_mapping = ['16-20', '21-25', '26-30', '31-35', '36-40',
-                            '41-45', '46-50', '51-55', '56-60', '61-70']
         self.gender_mapping = ['Female', 'Male']
 
         phase = 'train' if train else 'test'
         data_dir = os.path.join(root, phase)
 
+        # Duyệt qua các nhóm tuổi
         for age_group in os.listdir(data_dir):
             age_group_path = os.path.join(data_dir, age_group)
             if os.path.isdir(age_group_path):
+                # Duyệt qua các thư mục giới tính
                 for gender in os.listdir(age_group_path):
                     gender_path = os.path.join(age_group_path, gender)
                     if os.path.isdir(gender_path):
@@ -31,7 +31,7 @@ class AgeGenderDataset(Dataset):
                             img_path = os.path.join(gender_path, img_name)
                             if img_name.lower().endswith(('.png', '.jpg', '.jpeg')):
                                 self.data.append(img_path)
-                                self.labels.append((age_group, gender))
+                                self.labels.append(gender)
 
         if len(self.data) == 0:
             raise ValueError(f"No images found in {data_dir}")
@@ -41,17 +41,14 @@ class AgeGenderDataset(Dataset):
 
     def __getitem__(self, idx):
         img_path = self.data[idx]
-        age_group, gender = self.labels[idx]
+        gender = self.labels[idx]
 
-        # Tạo nhãn
-        age_idx = self.age_mapping.index(age_group)
+        # Tạo nhãn chỉ dựa trên giới tính
         gender_idx = self.gender_mapping.index(gender)
-        label = age_idx * 2 + gender_idx  # 10 tuổi * 2 giới tính = 20 lớp
+        label = gender_idx  # Chỉ có 2 lớp: 0 (Female) và 1 (Male)
 
         # Đọc và xử lý ảnh
         image = cv2.imread(img_path)
-        if image is None:
-            raise RuntimeError(f"Failed to load image: {img_path}")
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
         if self.transforms:

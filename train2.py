@@ -10,11 +10,11 @@ from torch.utils.tensorboard import SummaryWriter
 import argparse
 import matplotlib.pyplot as plt
 import numpy as np
-from loadata import AgeGenderDataset, train_transform, val_transform
+from loadata import GenderDataset, train_transform, val_transform  # Sử dụng GenderDataset
 
 
 def plot_confusion_matrix(writer, cm, class_names, epoch):
-    figure = plt.figure(figsize=(30, 30))
+    figure = plt.figure(figsize=(8, 8))  # Giảm kích thước vì chỉ có 2 lớp
     plt.imshow(cm, interpolation='nearest', cmap="Wistia")
     plt.title("Confusion matrix")
     plt.colorbar()
@@ -58,25 +58,27 @@ def train(args):
     if not os.path.isdir(args.checkpoint_path):
         os.makedirs(args.checkpoint_path)
 
-    train_dataset = AgeGenderDataset(root=args.root,
-                                     train=True,
-                                     transforms=train_transform)
+    # Sử dụng GenderDataset thay vì AgeGenderDataset
+    train_dataset = GenderDataset(root=args.root,
+                                  train=True,
+                                  transforms=train_transform)
 
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size,
                                   shuffle=True, num_workers=args.num_workers,
                                   drop_last=True)
 
-    val_dataset = AgeGenderDataset(root=args.root,
-                                   train=False,
-                                   transforms=val_transform)
+    val_dataset = GenderDataset(root=args.root,
+                                train=False,
+                                transforms=val_transform)
     val_dataloader = DataLoader(val_dataset, batch_size=args.batch_size,
                                 shuffle=False, num_workers=args.num_workers,
                                 drop_last=False)
 
+    # Khởi tạo ResNet50 và thay đổi lớp đầu ra thành 2 lớp
     model = models.resnet50(weights=models.ResNet50_Weights.DEFAULT).to(device)
-    model.fc = nn.Linear(2048, 20)  # 10 tuổi * 2 giới tính = 20 lớp
+    model.fc = nn.Linear(2048, 2)  # Chỉ có 2 lớp: Female và Male
 
-    # Unfreeze layer4
+    # Unfreeze layer4 để fine-tuning
     for param in model.layer4.parameters():
         param.requires_grad = True
 
@@ -95,9 +97,8 @@ def train(args):
         start_epoch = 0
         best_acc = -1
 
-    age_mapping = ['16-20', '21-25', '26-30', '31-35', '36-40',
-                   '41-45', '46-50', '51-55', '56-60', '61-70']
-    class_names = [f'{age}-{gender}' for age in age_mapping for gender in ['Female', 'Male']]
+    # Cập nhật class_names cho 2 lớp giới tính
+    class_names = ['Female', 'Male']
 
     for epoch in range(start_epoch, args.num_epoch):
         model.train()
